@@ -44,7 +44,7 @@ class Program
                     break;
 
                 case "3":
-                    OpenProfile();
+                    openProfile();
                     break;
 
                 case "4":
