@@ -12,3 +12,4 @@
 /Users/macbookair/Desktop/IT Rider/reiderproject1/reiderproject1/obj/Debug/net10.0/reiderproject1.pdb
 /Users/macbookair/Desktop/IT Rider/reiderproject1/reiderproject1/obj/Debug/net10.0/reiderproject1.genruntimeconfig.cache
 /Users/macbookair/Desktop/IT Rider/reiderproject1/reiderproject1/obj/Debug/net10.0/ref/reiderproject1.dll
+/Users/macbookair/Desktop/IT Rider/reiderproject1/reiderproject1/obj/Debug/net10.0/reiderproject1.sourcelink.json

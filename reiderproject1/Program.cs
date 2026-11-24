@@ -44,7 +44,7 @@ class Program
                     break;
 
                 case "3":
-                    openProfile();
+                    OpenProfile();
                     break;
 
                 case "4":
@@ -116,6 +116,7 @@ class Program
             Console.WriteLine("3. Return");
 
             string option = Console.ReadLine() ?? "";
+            Console.Clear();
 
             if (option == "1")
             {
