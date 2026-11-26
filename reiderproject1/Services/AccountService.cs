@@ -1,82 +1,53 @@
-namespace reiderproject1.Services;
 using reiderproject1.Models;
-using System.Text.Json;
 using System.Security.Cryptography;
+using System.Text.Json;
+
+namespace reiderproject1.Services;
 
 public class AccountService
 {
-    public List<User> Users = new();
+    private readonly string dataFolder;
+    private readonly string usersFile;
+
+    public List<User> Users { get; private set; } = new();
+
     public User? CurrentUser { get; private set; }
-
-    private readonly string folder =
-        Path.Combine(Directory.GetCurrentDirectory(), "Data");
-
-    private string FilePath =>
-        Path.Combine(folder, "users.json");
 
     public AccountService()
     {
+        dataFolder = Path.Combine(
+            AppDomain.CurrentDomain.BaseDirectory, "Data");
+
+        usersFile = Path.Combine(dataFolder, "users.json");
+
+        Directory.CreateDirectory(dataFolder);
+
         LoadUsers();
     }
 
-    // Save accounts
+    // SAVE USERS
     private void SaveUsers()
     {
-        Directory.CreateDirectory(folder);
-
         string json = JsonSerializer.Serialize(
             Users,
             new JsonSerializerOptions { WriteIndented = true });
 
-        File.WriteAllText(FilePath, json);
+        File.WriteAllText(usersFile, json);
     }
 
-    // Load accounts
+    // LOAD USERS
     private void LoadUsers()
     {
-        if (!File.Exists(FilePath))
-            return;
-
-        string json = File.ReadAllText(FilePath);
-
-        Users = JsonSerializer.Deserialize<List<User>>(json)
-                ?? new List<User>();
-    }
-
-    // Hide password while typing
-    private string ReadPassword()
-    {
-        string password = "";
-
-        while (true)
+        if (File.Exists(usersFile))
         {
-            var key = Console.ReadKey(true);
+            string json = File.ReadAllText(usersFile);
 
-            if (key.Key == ConsoleKey.Enter)
-            {
-                Console.WriteLine();
-                break;
-            }
-
-            if (key.Key == ConsoleKey.Backspace)
-            {
-                if (password.Length > 0)
-                {
-                    password = password[..^1];
-                    Console.Write("\b \b");
-                }
-            }
-            else if (!char.IsControl(key.KeyChar))
-            {
-                password += key.KeyChar;
-                Console.Write("*");
-            }
+            Users = JsonSerializer.Deserialize<List<User>>(json)
+                    ?? new List<User>();
         }
-
-        return password;
     }
 
-    // Password hashing
+    // PASSWORD HASHING
     private string HashPassword(string password, byte[] salt)
     {
         byte[] hash = Rfc2898DeriveBytes.Pbkdf2(
@@ -89,50 +60,55 @@ public class AccountService
         return Convert.ToBase64String(hash);
     }
 
-    // Registration
-    public void Register()
+    // SIGN UP
+    public void SignUp()
     {
         Console.Write("Full name: ");
-        string name = Console.ReadLine() ?? "";
+        string fullName = Console.ReadLine() ?? "";
 
         Console.Write("Email: ");
         string email = Console.ReadLine() ?? "";
 
-        if (string.IsNullOrWhiteSpace(name) ||
-            string.IsNullOrWhiteSpace(email) ||
-            Users.Any(u => u.Email.Equals(
-                email, StringComparison.OrdinalIgnoreCase)))
-        {
-            Console.WriteLine("Invalid information or email already exists!");
-            return;
-        }
-
         Console.Write("Password: ");
         string password = ReadPassword();
 
-        if (string.IsNullOrWhiteSpace(password))
+        if (string.IsNullOrWhiteSpace(fullName) ||
+            string.IsNullOrWhiteSpace(email) ||
+            string.IsNullOrWhiteSpace(password))
         {
-            Console.WriteLine("Password cannot be empty!");
+            Console.WriteLine("All fields are required!");
+            return;
+        }
+
+        if (Users.Any(u =>
+            u.Email.Equals(email, StringComparison.OrdinalIgnoreCase)))
+        {
+            Console.WriteLine("This email is already registered!");
             return;
         }
 
         byte[] salt = RandomNumberGenerator.GetBytes(16);
 
-        string saltString = Convert.ToBase64String(salt);
         string hash = HashPassword(password, salt);
 
-        var newUser = new User(name, email, hash, saltString);
+        User user = new User
+        {
+            FullName = fullName,
+            Email = email,
+            PasswordHash = hash,
+            PasswordSalt = Convert.ToBase64String(salt)
+        };
 
-        Users.Add(newUser);
-        CurrentUser = newUser;
-
+        Users.Add(user);
         SaveUsers();
 
-        Console.WriteLine("Registration successful!");
-        Console.WriteLine($"Welcome, {name}!");
+        Console.WriteLine("\nAccount created successfully!");
+        Console.WriteLine("Now please log in.\n");
+
+        Login();
     }
 
-    // Login
+    // LOG IN
     public void Login()
     {
         Console.Write("Email: ");
@@ -151,6 +127,7 @@ public class AccountService
         }
 
         byte[] salt = Convert.FromBase64String(user.PasswordSalt);
+
         string hash = HashPassword(password, salt);
 
         bool correct = CryptographicOperations.FixedTimeEquals(
@@ -160,6 +137,7 @@ public class AccountService
         if (correct)
         {
             CurrentUser = user;
+
             Console.WriteLine($"Welcome back, {user.FullName}!");
         }
         else
@@ -168,10 +146,38 @@ public class AccountService
         }
     }
 
-    // Logout
+    // HIDDEN PASSWORD INPUT
+    private string ReadPassword()
+    {
+        string password = "";
+
+        ConsoleKeyInfo key;
+
+        while ((key = Console.ReadKey(true)).Key != ConsoleKey.Enter)
+        {
+            if (key.Key == ConsoleKey.Backspace)
+            {
+                if (password.Length > 0)
+                {
+                    password = password[..^1];
+                    Console.Write("\b \b");
+                }
+            }
+            else if (!char.IsControl(key.KeyChar))
+            {
+                password += key.KeyChar;
+                Console.Write("*");
+            }
+        }
+
+        Console.WriteLine();
+
+        return password;
+    }
+
     public void Logout()
     {
         CurrentUser = null;
-        Console.WriteLine("You have logged out!");
+        Console.WriteLine("Logged out successfully!");
     }
 }

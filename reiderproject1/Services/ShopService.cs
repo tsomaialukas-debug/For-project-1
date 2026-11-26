@@ -1,5 +1,7 @@
 namespace reiderproject1.Services;
+
 using reiderproject1.Models;
+using Spectre.Console;
 
 public class ShopService
 {
@@ -57,14 +59,10 @@ public class ShopService
 
     public void AddToCart(User user, Product product)
     {
-        Console.Write("Quantity: ");
-
-        if (!int.TryParse(Console.ReadLine(), out int quantity) ||
-            quantity <= 0)
-        {
-            Console.WriteLine("Invalid quantity!");
-            return;
-        }
+        int quantity = AnsiConsole.Prompt(
+            new SelectionPrompt<int>()
+                .Title($"How many [yellow]{product.Name}[/] would you like?")
+                .AddChoices(Enumerable.Range(1, 10)));
 
         var item = user.Cart.FirstOrDefault(
             c => c.Product.Id == product.Id);

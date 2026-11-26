@@ -1,5 +1,9 @@
 ﻿using reiderproject1.Models;
+
 using reiderproject1.Services;
+using Spectre.Console;
+using System;
+using System.Linq;
 
 class Program
 {
@@ -10,97 +14,102 @@ class Program
     {
         while (true)
         {
-            Console.WriteLine("\n================================");
-            Console.WriteLine("       WELCOME TO OUR SHOP");
-            Console.WriteLine("        YOUR DAILY MARKET");
-            Console.WriteLine("================================");
-
-            Console.WriteLine("\n1. Shop");
-            Console.WriteLine("2. Cart");
-            Console.WriteLine("3. Profile");
-            Console.WriteLine("4. More Information");
-
-            if (account.CurrentUser != null)
-                Console.WriteLine("5. Log Out");
-
-            Console.WriteLine(account.CurrentUser == null
-                ? "5. Exit"
-                : "6. Exit");
-
-            Console.Write("\nChoose: ");
-            string choice = Console.ReadLine() ?? "";
-
-            switch (choice)
+            if (account.CurrentUser == null)
             {
-                case "1":
-                    OpenShop();
-                    break;
+                string guestChoice = AnsiConsole.Prompt(
+                    new SelectionPrompt<string>()
+                        .Title("[bold]WELCOME TO OUR SHOP[/]")
+                        .AddChoices("Shop", "Login", "Register", "More Information", "Exit"));
 
-                case "2":
-                    if (account.CurrentUser == null)
-                        Console.WriteLine("Please log in first!");
-                    else
+                Console.Clear();
+
+                switch (guestChoice)
+                {
+                    case "Shop":
+                        OpenShop();
+                        break;
+
+                    case "Login":
+                        account.Login();
+                        break;
+
+                    case "Register":
+                        account.SignUp();
+                        break;
+
+                    case "More Information":
+                        Console.WriteLine("Welcome to our online shop!");
+                        break;
+
+                    case "Exit":
+                        return;
+                }
+            }
+            else
+            {
+                string userChoice = AnsiConsole.Prompt(
+                    new SelectionPrompt<string>()
+                        .Title("[bold]WELCOME BACK TO OUR SHOP[/]")
+                        .AddChoices("Shop", "Cart", "Profile", "More Information", "Log Out", "Exit"));
+
+                Console.Clear();
+
+                switch (userChoice)
+                {
+                    case "Shop":
+                        OpenShop();
+                        break;
+
+                    case "Cart":
                         shop.ShowCart(account.CurrentUser);
-                    break;
+                        break;
 
-                case "3":
-                    OpenProfile();
-                    break;
+                    case "Profile":
+                        OpenProfile();
+                        break;
 
-                case "4":
-                    Console.WriteLine("\nYOUR DAILY MARKET");
-                    Console.WriteLine("Welcome to our online shop!");
-                    Console.WriteLine("Find your favorite products here.");
-                    break;
+                    case "More Information":
+                        Console.WriteLine("Welcome to our online shop!");
+                        break;
 
-                case "5":
-                    if (account.CurrentUser != null)
+                    case "Log Out":
                         account.Logout();
-                    else
-                        return;
-                    break;
+                        break;
 
-                case "6":
-                    if (account.CurrentUser != null)
+                    case "Exit":
                         return;
-                    break;
-
-                default:
-                    Console.WriteLine("Invalid choice!");
-                    break;
+                }
             }
         }
     }
 
     static void OpenShop()
     {
-        shop.ShowCategories();
-
-        Console.Write("\nChoose category number: ");
-
-        if (!int.TryParse(Console.ReadLine(), out int choice))
-            return;
-
         var categories = shop.Products
-            .Select(p => p.Category)
+            .Select(product => product.Category)
             .Distinct()
             .ToList();
 
-        if (choice < 1 || choice > categories.Count)
-        {
-            Console.WriteLine("Invalid category!");
-            return;
-        }
+        Console.Clear();
+        string category = AnsiConsole.Prompt(
+            new SelectionPrompt<string>()
+                .Title("Select a category")
+                .AddChoices(categories));
 
-        shop.ShowProducts(categories[choice - 1]);
+        var products = shop.Products
+            .Where(product => product.Category == category)
+            .ToList();
 
-        Console.Write("\nEnter product ID to add (0 to return): ");
+        var productChoices = products.ToDictionary(
+            product => $"{product.Name} - [green]{product.Price:F2} GEL[/]",
+            product => product);
 
-        if (!int.TryParse(Console.ReadLine(), out int id) || id == 0)
-            return;
+        string selectedProduct = AnsiConsole.Prompt(
+            new SelectionPrompt<string>()
+                .Title($"Select a product from [yellow]{category}[/]")
+                .AddChoices(productChoices.Keys));
 
-        var product = shop.Products.FirstOrDefault(p =>
-            p.Id == id && p.Category == categories[choice - 1]);
+        Product? product = productChoices[selectedProduct];
 
         if (product == null)
         {
@@ -110,65 +119,21 @@ class Program
 
         if (account.CurrentUser == null)
         {
-            Console.WriteLine("\nYou must log in first!");
-            Console.WriteLine("1. Login");
-            Console.WriteLine("2. Register");
-            Console.WriteLine("3. Return");
-
-            string option = Console.ReadLine() ?? "";
-            Console.Clear();
-
-            if (option == "1")
-            {
-                account.Login();
-            }
-            else if (option == "2")
-            {
-                account.Register();
-            }
-            else
-            {
-                return;
-            }
-
-            if (account.CurrentUser == null)
-            {
-                Console.WriteLine("Authentication failed!");
-                return;
-            }
+            Console.WriteLine("Please log in to add products to your cart.");
+            return;
         }
 
-        Console.WriteLine($"\nSelected product: {product.Name}");
-        
         shop.AddToCart(account.CurrentUser, product);
     }
 
     static void OpenProfile()
     {
-        if (account.CurrentUser != null)
-        {
-            Console.WriteLine("\n--- YOUR PROFILE ---");
-            Console.WriteLine($"Name: {account.CurrentUser.FullName}");
-            Console.WriteLine($"Email: {account.CurrentUser.Email}");
+        if (account.CurrentUser == null)
             return;
-        }
 
         Console.WriteLine("\n--- PROFILE ---");
-        Console.WriteLine("1. Login");
-        Console.WriteLine("2. Register");
-        Console.WriteLine("3. Return");
-
-        string choice = Console.ReadLine() ?? "";
-
-        switch (choice)
-        {
-            case "1":
-                account.Login();
-                break;
-
-            case "2":
-                account.Register();
-                break;
-        }
+        Console.WriteLine($"Name: {account.CurrentUser.FullName}");
+        Console.WriteLine($"Email: {account.CurrentUser.Email}");
+        Console.WriteLine($"Cart items: {account.CurrentUser.Cart.Sum(item => item.Quantity)}");
     }
 }
